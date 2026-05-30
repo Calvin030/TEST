@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>課堂即時互動系統</title>
+    <title>Classroom Real-time Interaction System</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -27,57 +27,57 @@
 <body>
 
     <div id="view-role" class="card">
-        <h1>課堂即時回答系統</h1>
-        <p>請選擇你的身分：</p>
-        <button onclick="switchView('student-1')" style="margin-bottom: 15px;">我是學生 (進入回答)</button>
-        <button onclick="initTeacher()" style="background-color: #2ecc71;">我是老師 (查看結果)</button>
+        <h1>Classroom Interaction System</h1>
+        <p>Please select your role:</p>
+        <button onclick="switchView('student-1')" style="margin-bottom: 15px;">I am a Student (Submit Answers)</button>
+        <button onclick="initTeacher()" style="background-color: #2ecc71;">I am the Teacher (View Results)</button>
     </div>
 
     <div id="view-student-1" class="card hidden">
-        <h2>請選擇你的組別</h2>
+        <h2>Select Your Group</h2>
         <select id="student-group">
-            <option value="第一組">第一組</option>
-            <option value="第二組">第二組</option>
-            <option value="第三組">第三組</option>
-            <option value="第四組">第四組</option>
-            <option value="第五組">第五組</option>
-            <option value="第六組">第六組</option>
+            <option value="Group 1">Group 1</option>
+            <option value="Group 2">Group 2</option>
+            <option value="Group 3">Group 3</option>
+            <option value="Group 4">Group 4</option>
+            <option value="Group 5">Group 5</option>
+            <option value="Group 6">Group 6</option>
         </select>
-        <button onclick="goToStudentStep2()">下一步</button>
+        <button onclick="goToStudentStep2()">Next</button>
     </div>
 
     <div id="view-student-2" class="card hidden">
-        <h2 id="display-group-name">第 X 組</h2>
-        <p>請在下方輸入你們的答案或想法：</p>
-        <textarea id="student-text" rows="5" placeholder="在此輸入文字..."></textarea>
-        <button onclick="submitAnswer()" style="background-color: #e67e22;">提交答案</button>
+        <h2 id="display-group-name">Group X</h2>
+        <p>Please enter your answers or thoughts below:</p>
+        <textarea id="student-text" rows="5" placeholder="Type your answer here..."></textarea>
+        <button onclick="submitAnswer()" style="background-color: #e67e22;">Submit Answer</button>
         <p id="submit-status" style="color: green; margin-top: 10px;"></p>
     </div>
 
     <div id="view-teacher" class="teacher-container hidden">
         <div class="card" style="max-width: 400px; margin: 20px auto;">
-            <h2>學生掃描 QR Code 連接</h2>
+            <h2>Scan QR Code to Connect</h2>
             <div id="qrcode"></div>
-            <button onclick="clearAllData()" style="background-color: #e74c3c; margin-top: 10px;">清空所有組別數據</button>
-            <button onclick="location.reload()" style="background-color: #95a5a6; margin-top: 10px;">返回主頁</button>
+            <button onclick="clearAllData()" style="background-color: #e74c3c; margin-top: 10px;">Clear All Responses</button>
+            <button onclick="location.reload()" style="background-color: #95a5a6; margin-top: 10px;">Back to Home</button>
         </div>
-        <h2>📊 各組即時畫面</h2>
+        <h2>📊 Live Responses Dashboard</h2>
         <div id="teacher-grid" class="grid"></div>
     </div>
 
     <script>
-        // Firebase 精確設定網址
+        // Firebase Configuration
         const firebaseConfig = {
             databaseURL: "https://test-c6cab-default-rtdb.asia-southeast1.firebasedatabase.app" 
         };
         
-        // 初始化 Firebase
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         let currentGroup = "";
 
-        // 畫面切換
+        // Switch View Logic
         function switchView(viewId) {
             document.getElementById('view-role').classList.add('hidden');
             document.getElementById('view-student-1').classList.add('hidden');
@@ -86,92 +86,91 @@
             document.getElementById('view-' + viewId).classList.remove('hidden');
         }
 
-        // 學生選好組別，進入下一頁
+        // Student Step 1 -> Step 2
         function goToStudentStep2() {
             currentGroup = document.getElementById('student-group').value;
             document.getElementById('display-group-name').innerText = currentGroup;
             switchView('student-2');
-            document.getElementById('student-text').value = ""; // 清空框框，讓學生重新輸入新內容
+            document.getElementById('student-text').value = ""; 
         }
 
-        // 學生提交答案（已修改為：自動換行追加、保留舊答案、成功後清空框框）
+        // Student Submit Answer (Append Mode)
         function submitAnswer() {
             const text = document.getElementById('student-text').value;
             const statusText = document.getElementById('submit-status');
             
-            // 檢查如果沒打字就不讓他們送出
             if (!text.trim()) {
-                statusText.innerText = "⚠️ 請先輸入文字再提交！";
+                statusText.innerText = "⚠️ Please enter some text before submitting!";
                 statusText.style.color = "red";
                 return;
             }
 
-            statusText.innerText = "正在儲存...";
+            statusText.innerText = "Saving...";
             statusText.style.color = "orange";
             
-            // 1. 先去雲端撈出這一組原本就有的答案
             database.ref('classroom/' + currentGroup).once('value').then((snapshot) => {
                 let finalOldText = "";
                 if (snapshot.exists()) {
                     finalOldText = snapshot.val();
                 }
                 
-                // 2. 如果之前已經有答案，就「換行追加」在後面；沒有就直接等於新答案
                 let updatedText = text;
                 if (finalOldText !== "") {
                     updatedText = finalOldText + "\n" + text;
                 }
                 
-                // 3. 把合併後的大字串更新回 Firebase 資料庫
                 return database.ref('classroom/' + currentGroup).set(updatedText);
             })
             .then(() => {
-                statusText.innerText = "✅ 提交成功！已追加到老師畫面。";
+                statusText.innerText = "✅ Submitted successfully! Appended to teacher's screen.";
                 statusText.style.color = "green";
-                document.getElementById('student-text').value = ""; // 成功後自動清空手機輸入框，方便回答下一題
+                document.getElementById('student-text').value = ""; 
                 setTimeout(() => { statusText.innerText = ""; }, 3000);
             })
             .catch((error) => {
-                statusText.innerText = "❌ 失敗: " + error.message;
+                statusText.innerText = "❌ Failed: " + error.message;
                 statusText.style.color = "red";
             });
         }
 
-        // 老師端初始化
+        // Teacher Dashboard Initialization with Password
         function initTeacher() {
-            switchView('teacher');
-            document.getElementById("qrcode").innerHTML = ""; 
-            new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 180, height: 180 });
+            const password = prompt("Please enter the Teacher Password:");
+            
+            if (password === "GGTDS2231") {
+                switchView('teacher');
+                document.getElementById("qrcode").innerHTML = ""; 
+                new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 180, height: 180 });
 
-            // 即時同步監聽
-            database.ref('classroom').on('value', (snapshot) => {
-                const grid = document.getElementById('teacher-grid');
-                grid.innerHTML = ""; 
-                const data = snapshot.val() || {};
-                
-                for(let i = 1; i <= 6; i++) {
-                    const groupName = `第${getChineseNumber(i)}組`;
-                    const content = data[groupName] || "（目前沒有輸入內容）";
-                    grid.innerHTML += `
-                        <div class="group-card">
-                            <div class="group-title">${groupName}</div>
-                            <div class="group-content">${escapeHtml(content)}</div>
-                        </div>`;
-                }
-            });
+                // Real-time listener
+                database.ref('classroom').on('value', (snapshot) => {
+                    const grid = document.getElementById('teacher-grid');
+                    grid.innerHTML = ""; 
+                    const data = snapshot.val() || {};
+                    
+                    for(let i = 1; i <= 6; i++) {
+                        const groupName = `Group ${i}`;
+                        const content = data[groupName] || "(No content submitted yet)";
+                        grid.innerHTML += `
+                            <div class="group-card">
+                                <div class="group-title">${groupName}</div>
+                                <div class="group-content">${escapeHtml(content)}</div>
+                            </div>`;
+                    }
+                });
+            } else if (password !== null) {
+                alert("❌ Incorrect password. Access denied!");
+            }
         }
 
-        // 清空所有組別數據
+        // Clear Database Content
         function clearAllData() {
-            if(confirm("確定要清空所有組別的答案嗎？")) { 
+            if(confirm("Are you sure you want to clear all responses? This cannot be undone.")) { 
                 database.ref('classroom').remove(); 
             }
         }
 
-        function getChineseNumber(num) {
-            return ["零", "一", "二", "三", "四", "五", "六"][num];
-        }
-
+        // HTML Escape Helper
         function escapeHtml(text) {
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
