@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GGTDS</title
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>課堂即時互動系統</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
     
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
@@ -75,14 +76,22 @@
             databaseURL: "https://test-c6cab-default-rtdb.asia-southeast1.firebasedatabase.app" 
         };
         
-        // 初始化 Firebase (加入安全防護，確保載入失敗也不會當機)
         let database = null;
-        try {
-            firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
-        } catch (e) {
-            console.error("Firebase 初始化失敗，請檢查網路:", e);
-        }
+
+        // 確保網頁與外部 Firebase 檔案完全載入後，才啟動資料庫
+        window.onload = function() {
+            try {
+                if (typeof firebase !== 'undefined') {
+                    firebase.initializeApp(firebaseConfig);
+                    database = firebase.database();
+                    console.log("Firebase 成功連線！");
+                } else {
+                    alert("網路阻擋了 Firebase 載入，請刷新網頁或更換網路。");
+                }
+            } catch (e) {
+                console.error("初始化失敗:", e);
+            }
+        };
 
         // --- 🔄 畫面切換邏輯 ---
         let currentGroup = "";
@@ -101,11 +110,9 @@
             currentGroup = document.getElementById('student-group').value;
             document.getElementById('display-group-name').innerText = currentGroup;
             
-            // 先切換到打字畫面
             switchView('student-2');
             document.getElementById('student-text').value = ""; 
             
-            // 後台讀取 Firebase 的原有資料
             if (database) {
                 database.ref('classroom/' + currentGroup).once('value')
                 .then((snapshot) => {
@@ -127,12 +134,11 @@
             statusText.style.color = "orange";
             
             if (!database) {
-                statusText.innerText = "❌ 系統未連接到資料庫，無法儲存。";
+                statusText.innerText = "❌ 系統未連接到資料庫，請重新整理網頁再試。";
                 statusText.style.color = "red";
                 return;
             }
             
-            // 寫入 Firebase 資料庫
             database.ref('classroom/' + currentGroup).set(text)
             .then(() => {
                 statusText.innerText = "✅ 提交成功！老師那邊已經同步更新。";
@@ -149,23 +155,24 @@
         function initTeacher() {
             switchView('teacher');
             
-            // 自動根據目前網址生成 QR Code
             document.getElementById("qrcode").innerHTML = ""; 
-            new QRCode(document.getElementById("qrcode"), {
-                text: window.location.href,
-                width: 180,
-                height: 180
-            });
+            try {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: window.location.href,
+                    width: 180,
+                    height: 180
+                });
+            } catch(e) {
+                console.log("QR code 生成暫時有誤");
+            }
 
             const grid = document.getElementById('teacher-grid');
             
             if (database) {
-                // 監聽資料庫變動
                 database.ref('classroom').on('value', (snapshot) => {
                     grid.innerHTML = ""; 
                     const data = snapshot.val() || {};
                     
-                    // 預設產出 1 ~ 6 組的卡片
                     for(let i = 1; i <= 6; i++) {
                         const groupName = `第${getChineseNumber(i)}組`;
                         const content = data[groupName] || "（目前沒有輸入內容）";
@@ -180,24 +187,21 @@
                     }
                 });
             } else {
-                grid.innerHTML = "<p style='color:red; text-align:center;'>資料庫未連線，無法即時更新畫面。</p>";
+                grid.innerHTML = "<p style='color:red; text-align:center; font-size:18px; font-weight:bold; padding:20px; background:white; border-radius:8px;'>⚠️ 資料庫未連線，請重新整理網頁，或確認您的 Rules 是否已按 Publish 發布。</p>";
             }
         }
 
-        // 清空所有組別數據
         function clearAllData() {
             if(database && confirm("確定要清空所有組別的答案嗎？")) {
                 database.ref('classroom').remove();
             }
         }
 
-        // 數字轉中文輔助函式
         function getChineseNumber(num) {
             const arr = ["零", "一", "二", "三", "四", "五", "六"];
             return arr[num];
         }
 
-        // 預防 XSS 注入攻擊的編碼函式 (已修正結尾分號錯誤)
         function escapeHtml(text) {
             return text
                 .replace(/&/g, "&amp;")
