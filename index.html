@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classroom Real-time Interaction System</title>
+    <title>Training Real-time Interaction System</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -27,10 +27,10 @@
 <body>
 
     <div id="view-role" class="card">
-        <h1>Classroom Interaction System</h1>
+        <h1>Training Interaction System</h1>
         <p>Please select your role:</p>
-        <button onclick="switchView('student-1')" style="margin-bottom: 15px;">I am a Student (Submit Answers)</button>
-        <button onclick="initTeacher()" style="background-color: #2ecc71;">I am the Teacher (View Results)</button>
+        <button onclick="switchView('student-1')" style="margin-bottom: 15px;">I am a Trainee (Submit Answers)</button>
+        <button onclick="initTeacher()" style="background-color: #2ecc71;">I am the Trainer (View Results)</button>
     </div>
 
     <div id="view-student-1" class="card hidden">
@@ -86,7 +86,7 @@
             document.getElementById('view-' + viewId).classList.remove('hidden');
         }
 
-        // Student Step 1 -> Step 2
+        // Trainee Step 1 -> Step 2
         function goToStudentStep2() {
             currentGroup = document.getElementById('student-group').value;
             document.getElementById('display-group-name').innerText = currentGroup;
@@ -94,7 +94,7 @@
             document.getElementById('student-text').value = ""; 
         }
 
-        // Student Submit Answer (Append Mode)
+        // Trainee Submit Answer (Append Mode)
         function submitAnswer() {
             const text = document.getElementById('student-text').value;
             const statusText = document.getElementById('submit-status');
@@ -122,7 +122,7 @@
                 return database.ref('classroom/' + currentGroup).set(updatedText);
             })
             .then(() => {
-                statusText.innerText = "✅ Submitted successfully! Appended to teacher's screen.";
+                statusText.innerText = "✅ Submitted successfully! Appended to trainer's screen.";
                 statusText.style.color = "green";
                 document.getElementById('student-text').value = ""; 
                 setTimeout(() => { statusText.innerText = ""; }, 3000);
@@ -133,9 +133,9 @@
             });
         }
 
-        // Teacher Dashboard Initialization with Password
+        // Trainer Dashboard Initialization with Password
         function initTeacher() {
-            const password = prompt("Please enter the Teacher Password:");
+            const password = prompt("Please enter the Trainer Password:");
             
             if (password === "GGTDS2231") {
                 switchView('teacher');
