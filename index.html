@@ -70,14 +70,19 @@
     </div>
 
     <script>
-        // --- ⚙️ FIREBASE 設定（已為您填入正確的亞洲東南區網址） ---
+        // --- ⚙️ FIREBASE 設定 ---
         const firebaseConfig = {
             databaseURL: "https://test-c6cab-default-rtdb.asia-southeast1.firebasedatabase.app" 
         };
         
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        // 初始化 Firebase (加入安全防護，確保載入失敗也不會當機)
+        let database = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        } catch (e) {
+            console.error("Firebase 初始化失敗，請檢查網路:", e);
+        }
 
         // --- 🔄 畫面切換邏輯 ---
         let currentGroup = "";
@@ -96,11 +101,11 @@
             currentGroup = document.getElementById('student-group').value;
             document.getElementById('display-group-name').innerText = currentGroup;
             
-            // 先強制跳轉頁面，防止因任何原因卡在第一頁
+            // 先切換到打字畫面
             switchView('student-2');
-            document.getElementById('student-text').value = ""; // 先清空前一組可能留下的字
+            document.getElementById('student-text').value = ""; 
             
-            // 後台自動讀取 Firebase 的原有資料
+            // 後台讀取 Firebase 的原有資料
             if (database) {
                 database.ref('classroom/' + currentGroup).once('value')
                 .then((snapshot) => {
@@ -109,7 +114,7 @@
                     }
                 })
                 .catch((err) => {
-                    console.log("Firebase 讀取有誤，但不影響打字功能:", err);
+                    console.log("Firebase 讀取暫時有誤:", err);
                 });
             }
         }
@@ -121,6 +126,12 @@
             statusText.innerText = "正在儲存...";
             statusText.style.color = "orange";
             
+            if (!database) {
+                statusText.innerText = "❌ 系統未連接到資料庫，無法儲存。";
+                statusText.style.color = "red";
+                return;
+            }
+            
             // 寫入 Firebase 資料庫
             database.ref('classroom/' + currentGroup).set(text)
             .then(() => {
@@ -129,9 +140,8 @@
                 setTimeout(() => { statusText.innerText = ""; }, 3000);
             })
             .catch((error) => {
-                statusText.innerText = "❌ 提交失敗: " + error.message + "\n請確保 Firebase 的 Rules 有開啟為 true！";
+                statusText.innerText = "❌ 提交失敗: " + error.message;
                 statusText.style.color = "red";
-                console.error(error);
             });
         }
 
@@ -149,30 +159,34 @@
 
             const grid = document.getElementById('teacher-grid');
             
-            // 監聽資料庫變動，達到免重新整理即時同步
-            database.ref('classroom').on('value', (snapshot) => {
-                grid.innerHTML = ""; 
-                const data = snapshot.val() || {};
-                
-                // 預設產出 1 ~ 6 組的卡片
-                for(let i = 1; i <= 6; i++) {
-                    const groupName = `第${getChineseNumber(i)}組`;
-                    const content = data[groupName] || "（目前沒有輸入內容）";
+            if (database) {
+                // 監聽資料庫變動
+                database.ref('classroom').on('value', (snapshot) => {
+                    grid.innerHTML = ""; 
+                    const data = snapshot.val() || {};
                     
-                    const cardHtml = `
-                        <div class="group-card">
-                            <div class="group-title">${groupName}</div>
-                            <div class="group-content">${escapeHtml(content)}</div>
-                        </div>
-                    `;
-                    grid.innerHTML += cardHtml;
-                }
-            });
+                    // 預設產出 1 ~ 6 組的卡片
+                    for(let i = 1; i <= 6; i++) {
+                        const groupName = `第${getChineseNumber(i)}組`;
+                        const content = data[groupName] || "（目前沒有輸入內容）";
+                        
+                        const cardHtml = `
+                            <div class="group-card">
+                                <div class="group-title">${groupName}</div>
+                                <div class="group-content">${escapeHtml(content)}</div>
+                            </div>
+                        `;
+                        grid.innerHTML += cardHtml;
+                    }
+                });
+            } else {
+                grid.innerHTML = "<p style='color:red; text-align:center;'>資料庫未連線，無法即時更新畫面。</p>";
+            }
         }
 
         // 清空所有組別數據
         function clearAllData() {
-            if(confirm("確定要清空所有組別的答案嗎？")) {
+            if(database && confirm("確定要清空所有組別的答案嗎？")) {
                 database.ref('classroom').remove();
             }
         }
@@ -183,14 +197,14 @@
             return arr[num];
         }
 
-        // 預防 XSS 注入攻擊的編碼函式
+        // 預防 XSS 注入攻擊的編碼函式 (已修正結尾分號錯誤)
         function escapeHtml(text) {
             return text
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039/");
+                .replace(/'/g, "&#039;");
         }
     </script>
 </body>
